@@ -1,0 +1,1295 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b1220" media="(prefers-color-scheme: dark)">
+<meta name="color-scheme" content="light dark">
+<title>Car Budget</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style>
+  :root {
+    --bg: #f3f5f7;
+    --card: #ffffff;
+    --text: #111827;
+    --muted: #6b7280;
+    --line: #e5e7eb;
+    --accent: #0f766e;
+    --accent-text: #ffffff;
+    --accent-soft: #ccfbf1;
+    --ok: #16a34a;
+    --warn: #d97706;
+    --over: #dc2626;
+    --track: #e5e7eb;
+    --shadow: 0 1px 3px rgba(0,0,0,.08), 0 1px 2px rgba(0,0,0,.04);
+    /* Trend chart: one fixed colour per category (validated for colour-blind separation) */
+    --c-petrol: #2a78d6;
+    --c-parking: #eb6834;
+    --c-carwash: #1baf7a;
+    --c-other: #eda100;
+    --grid: #eceae4;
+    --axis: #c3c2b7;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #0b1220;
+      --card: #151e2e;
+      --text: #e5e7eb;
+      --muted: #9ca3af;
+      --line: #263244;
+      --accent: #14b8a6;
+      --accent-text: #04201d;
+      --accent-soft: #123b39;
+      --ok: #22c55e;
+      --warn: #f59e0b;
+      --over: #f87171;
+      --track: #263244;
+      --shadow: none;
+      --c-petrol: #3987e5;
+      --c-parking: #d95926;
+      --c-carwash: #199e70;
+      --c-other: #c98500;
+      --grid: #223047;
+      --axis: #3a4a62;
+      color-scheme: dark;
+    }
+  }
+  * { box-sizing: border-box; }
+  [hidden] { display: none !important; }
+  html, body { margin: 0; background: var(--bg); color: var(--text); }
+  body {
+    font: 16px/1.4 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+    -webkit-tap-highlight-color: transparent;
+    padding: env(safe-area-inset-top, 0px) 0 env(safe-area-inset-bottom, 0px);
+  }
+  button, input { font: inherit; color: inherit; }
+  button { cursor: pointer; }
+  .wrap { max-width: 480px; margin: 0 auto; padding: 0 16px; }
+
+  /* ---------- Setup screen ---------- */
+  #setup { padding-block: 40px 32px; }
+  #setup h1 { font-size: 26px; margin: 0 0 6px; }
+  #setup p.lead { color: var(--muted); margin: 0 0 24px; }
+
+  /* ---------- Top bar ---------- */
+  .topbar {
+    position: sticky; top: 0; z-index: 5;
+    background: var(--bg);
+    display: flex; align-items: center; gap: 4px;
+    padding-block: 10px;
+  }
+  .icon-btn {
+    min-width: 48px; height: 48px; border: 0; border-radius: 12px;
+    background: transparent; font-size: 28px; line-height: 1;
+    display: inline-flex; align-items: center; justify-content: center;
+  }
+  .icon-btn:active { background: var(--line); }
+  #monthLabel {
+    flex: 1; border: 0; background: transparent; height: 48px;
+    font-size: 19px; font-weight: 700; border-radius: 12px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  #monthLabel small { font-size: 12px; font-weight: 500; color: var(--accent); }
+  #settingsBtn { font-size: 22px; }
+
+  /* ---------- Budget cards ---------- */
+  .card {
+    background: var(--card); border-radius: 16px; padding: 16px;
+    box-shadow: var(--shadow); margin-bottom: 12px;
+    border: 1px solid var(--line);
+  }
+  .card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+  .card-title { font-weight: 700; font-size: 17px; }
+  .tag { font-size: 12px; background: var(--accent-soft); color: var(--text); padding: 2px 8px; border-radius: 999px; white-space: nowrap; }
+  .stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; margin-bottom: 12px; }
+  .stat .lbl { display: block; font-size: 12px; color: var(--muted); }
+  .stat .val { display: block; font-size: 17px; font-weight: 600; font-variant-numeric: tabular-nums; word-break: break-word; }
+  .stat.balance .val { font-size: 19px; font-weight: 800; }
+  .lvl-ok   .stat.balance .val { color: var(--ok); }
+  .lvl-warn .stat.balance .val { color: var(--warn); }
+  .lvl-over .stat.balance .val { color: var(--over); }
+  .bar { height: 12px; background: var(--track); border-radius: 999px; overflow: hidden; }
+  .fill { height: 100%; border-radius: 999px; transition: width .3s; }
+  .lvl-ok .fill   { background: var(--ok); }
+  .lvl-warn .fill { background: var(--warn); }
+  .lvl-over .fill { background: var(--over); }
+  .card-foot { display: flex; justify-content: space-between; gap: 8px; margin-top: 6px; font-size: 13px; color: var(--muted); }
+
+  .total {
+    display: flex; justify-content: space-between; align-items: baseline;
+    padding: 4px 4px 16px; font-size: 15px; color: var(--muted);
+  }
+  .total strong { color: var(--text); font-size: 18px; font-variant-numeric: tabular-nums; }
+
+  /* ---------- Entry list ---------- */
+  h2 { font-size: 15px; color: var(--muted); font-weight: 600; margin: 8px 4px; text-transform: uppercase; letter-spacing: .04em; }
+  #entryList { list-style: none; margin: 0; padding: 0 0 110px; }
+  .entry {
+    width: 100%; display: flex; align-items: center; gap: 12px; text-align: left;
+    background: var(--card); border: 1px solid var(--line); border-radius: 14px;
+    padding: 12px 14px; margin-bottom: 8px; min-height: 64px;
+  }
+  .entry:active { background: var(--line); }
+  .entry .ico { font-size: 24px; width: 32px; text-align: center; flex: none; }
+  .entry .main { flex: 1; min-width: 0; }
+  .entry .name, .entry .note, .entry .amt, .entry .date { display: block; }
+  .entry .name { font-weight: 600; }
+  .entry .note { font-size: 14px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .entry .right { text-align: right; flex: none; }
+  .entry .amt { font-weight: 700; font-variant-numeric: tabular-nums; }
+  .entry .date { font-size: 13px; color: var(--muted); }
+  #emptyMsg { text-align: center; color: var(--muted); padding: 24px 0 110px; margin: 0; }
+
+  /* ---------- Add button ---------- */
+  #fab {
+    position: fixed; right: 20px; bottom: calc(20px + env(safe-area-inset-bottom, 0px));
+    width: 68px; height: 68px; border-radius: 50%; border: 0;
+    background: var(--accent); color: var(--accent-text);
+    font-size: 40px; line-height: 1; font-weight: 300;
+    box-shadow: 0 6px 16px rgba(0,0,0,.25); z-index: 10;
+  }
+  #fab:active { transform: scale(.95); }
+  @media (min-width: 520px) { #fab { right: calc(50% - 240px + 20px); } }
+
+  /* ---------- Forms ---------- */
+  label.field { display: block; margin-bottom: 16px; }
+  label.field > span { display: block; font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+  label.field > small { display: block; font-size: 13px; color: var(--muted); margin-top: 4px; }
+  .input {
+    width: 100%; height: 52px; padding: 0 14px; border-radius: 12px;
+    border: 1.5px solid var(--line); background: var(--bg); font-size: 17px;
+  }
+  .input:focus { outline: none; border-color: var(--accent); }
+  .money { position: relative; }
+  .money .cur {
+    position: absolute; left: 14px; top: 50%; transform: translateY(-50%);
+    color: var(--muted); font-weight: 600; pointer-events: none;
+  }
+  .money .input { padding-left: calc(20px + var(--cur-w, 2.2ch)); font-variant-numeric: tabular-nums; }
+  .money.big .input { height: 64px; font-size: 28px; font-weight: 700; }
+  .money.big .cur { font-size: 20px; }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+
+  .btn {
+    min-height: 52px; padding: 0 18px; border-radius: 12px; border: 0;
+    font-weight: 700; font-size: 17px; background: var(--line); color: var(--text);
+  }
+  .btn.primary { background: var(--accent); color: var(--accent-text); }
+  .btn.danger { background: transparent; color: var(--over); border: 1.5px solid var(--over); }
+  .btn.danger.solid { background: var(--over); color: #fff; border: 0; }
+  .btn.block { width: 100%; }
+  .btn:active { filter: brightness(.92); }
+  .actions { display: flex; gap: 10px; margin-top: 8px; }
+  .actions .btn { flex: 1; }
+  .err { color: var(--over); font-size: 14px; margin: -6px 0 12px; }
+
+  .cats { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 16px; }
+  .cat {
+    min-height: 60px; border-radius: 14px; border: 2px solid var(--line);
+    background: var(--bg); font-weight: 600; font-size: 16px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .cat .e { font-size: 22px; }
+  .cat[aria-pressed="true"] { border-color: var(--accent); background: var(--accent-soft); }
+
+  /* ---------- Dialogs ---------- */
+  dialog {
+    border: 0; padding: 0; background: var(--card); color: var(--text);
+  }
+  dialog::backdrop { background: rgba(0,0,0,.5); }
+  dialog.sheet {
+    width: 100%; max-width: 480px; max-height: 92vh; overflow-y: auto;
+    margin: auto auto 0; border-radius: 20px 20px 0 0;
+  }
+  dialog.center { width: calc(100% - 32px); max-width: 380px; border-radius: 18px; }
+  .dlg-body { padding: 20px 16px calc(20px + env(safe-area-inset-bottom, 0px)); }
+  .dlg-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
+  .dlg-head h3 { margin: 0; font-size: 20px; }
+  .section { border-top: 1px solid var(--line); padding-top: 16px; margin-top: 8px; }
+  .section h4 { margin: 0 0 4px; font-size: 16px; }
+  .section p.hint { margin: 0 0 12px; font-size: 14px; color: var(--muted); }
+  .stack { display: grid; gap: 10px; }
+  #confirmMsg { margin: 0 0 20px; font-size: 17px; }
+
+  .linkbtn { background: none; border: 0; color: var(--accent); font-weight: 600; padding: 12px 0; min-height: 48px; }
+
+  /* ---------- Trends ---------- */
+  .trends-link {
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    background: var(--card); border: 1px solid var(--line); margin-bottom: 8px;
+  }
+  .tb-title { flex: 1; margin: 0; font-size: 20px; }
+  .seg { display: flex; background: var(--line); border-radius: 12px; padding: 3px; }
+  .seg button {
+    border: 0; background: transparent; min-height: 42px; padding: 0 12px; border-radius: 9px;
+    font-weight: 600; font-size: 15px; color: var(--muted);
+  }
+  .seg button[aria-pressed="true"] { background: var(--card); color: var(--text); box-shadow: var(--shadow); }
+  .range-note { margin: 0 4px 12px; color: var(--muted); font-size: 14px; }
+  .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 12px; }
+  .tile { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; }
+  .tile .lbl { display: block; font-size: 13px; color: var(--muted); }
+  .tile .v { display: block; font-size: 24px; font-weight: 700; margin: 2px 0; }
+  .tile .s { display: block; font-size: 12px; color: var(--muted); }
+  .card h3.ct { margin: 0 0 8px; font-size: 16px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; margin-bottom: 10px; font-size: 13px; color: var(--muted); }
+  .legend span { display: inline-flex; align-items: center; gap: 6px; }
+  .legend i { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+  .sw-petrol { background: var(--c-petrol); }   .f-petrol { fill: var(--c-petrol); }
+  .sw-parking { background: var(--c-parking); } .f-parking { fill: var(--c-parking); }
+  .sw-carwash { background: var(--c-carwash); } .f-carwash { fill: var(--c-carwash); }
+  .sw-other { background: var(--c-other); }     .f-other { fill: var(--c-other); }
+  .chart { position: relative; }
+  .chart svg { display: block; width: 100%; overflow: visible; touch-action: pan-y; }
+  .chart .ax { fill: var(--muted); font-size: 11px; }
+  .chart .cap { fill: var(--text); font-size: 11px; font-weight: 600; }
+  .chart .grid { stroke: var(--grid); stroke-width: 1; }
+  .chart .base { stroke: var(--axis); stroke-width: 1; }
+  .chart .hit { fill: transparent; outline: none; cursor: pointer; }
+  .chart .col { transition: opacity .15s; }
+  .chart svg.has-active .col:not(.active) { opacity: .4; }
+  .tip {
+    position: absolute; top: 0; pointer-events: none; z-index: 2;
+    background: var(--card); border: 1px solid var(--line); border-radius: 12px;
+    box-shadow: 0 6px 20px rgba(0,0,0,.18); padding: 10px 12px; font-size: 13px; width: 184px;
+  }
+  .tip .t { font-weight: 700; margin-bottom: 6px; }
+  .tip .r { display: flex; align-items: center; gap: 8px; line-height: 1.6; }
+  .tip .r b { font-variant-numeric: tabular-nums; }
+  .tip .r .n { color: var(--muted); }
+  .tip .k { width: 12px; height: 3px; border-radius: 2px; flex: none; }
+  .tip .sum { border-top: 1px solid var(--line); margin-top: 6px; padding-top: 6px; }
+  .breakdown { list-style: none; margin: 0; padding: 0; display: grid; gap: 14px; }
+  .breakdown .top { display: flex; justify-content: space-between; gap: 8px; font-size: 15px; }
+  .breakdown .top span:last-child { color: var(--muted); font-variant-numeric: tabular-nums; }
+  .breakdown .bar2 { height: 10px; margin-top: 5px; border-radius: 0 4px 4px 0; min-width: 2px; }
+  .tbl-wrap { overflow-x: auto; }
+  table.bt { width: 100%; border-collapse: collapse; font-size: 14px; font-variant-numeric: tabular-nums; }
+  .bt th { text-align: right; font-size: 12px; color: var(--muted); font-weight: 600; padding: 0 6px 8px; }
+  .bt td { text-align: right; padding: 8px 6px; border-top: 1px solid var(--line); vertical-align: top; white-space: nowrap; }
+  .bt th:first-child, .bt td:first-child { text-align: left; padding-left: 0; }
+  .bt th:last-child, .bt td:last-child { padding-right: 0; }
+  .bt td small { display: block; color: var(--muted); font-size: 12px; }
+  .bt td small.warn { color: var(--warn); font-weight: 600; }
+  .bt td small.over { color: var(--over); font-weight: 600; }
+  #trendsEmpty { text-align: center; color: var(--muted); padding: 32px 0; }
+  #trends { padding-bottom: 32px; }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed; left: 50%; bottom: calc(104px + env(safe-area-inset-bottom, 0px));
+    transform: translateX(-50%); z-index: 100;
+    background: #111827; color: #fff; padding: 12px 18px; border-radius: 12px;
+    font-size: 15px; max-width: calc(100% - 32px); box-shadow: 0 6px 16px rgba(0,0,0,.3);
+    text-align: center; pointer-events: none;
+  }
+  #toast.bad { background: #b91c1c; }
+</style>
+</head>
+<body>
+
+<noscript><p style="padding:16px">Car Budget needs JavaScript turned on.</p></noscript>
+
+<!-- ===== First launch: set budgets ===== -->
+<section id="setup" class="wrap" hidden>
+  <h1>Set your monthly budgets</h1>
+  <p class="lead">These repeat every month. You can change them later in ⚙️ Settings.</p>
+  <form id="setupForm" novalidate>
+    <label class="field">
+      <span>⛽ Petrol per month</span>
+      <div class="money big"><span class="cur" data-cur>S$</span>
+        <input class="input" id="setupPetrol" inputmode="decimal" autocomplete="off" placeholder="300.00"></div>
+    </label>
+    <label class="field">
+      <span>🅿️ Parking &amp; Others per month</span>
+      <div class="money big"><span class="cur" data-cur>S$</span>
+        <input class="input" id="setupOthers" inputmode="decimal" autocomplete="off" placeholder="150.00"></div>
+      <small>Car park, car wash and anything else.</small>
+    </label>
+    <label class="field">
+      <span>Currency</span>
+      <input class="input" id="setupCurrency" value="S$" maxlength="6" autocomplete="off">
+    </label>
+    <p class="err" id="setupErr" hidden></p>
+    <button class="btn primary block" type="submit">Start</button>
+  </form>
+  <p style="text-align:center;margin-top:16px">
+    <button class="linkbtn" type="button" data-action="restore">Have a backup? Restore it</button>
+  </p>
+</section>
+
+<!-- ===== Main screen ===== -->
+<main id="home" class="wrap" hidden>
+  <header class="topbar">
+    <button class="icon-btn" id="prevMonth" aria-label="Previous month">‹</button>
+    <button id="monthLabel" aria-label="Go to this month"><span id="monthText"></span><small id="backToNow" hidden>Tap for this month</small></button>
+    <button class="icon-btn" id="nextMonth" aria-label="Next month">›</button>
+    <button class="icon-btn" id="settingsBtn" aria-label="Settings">⚙️</button>
+  </header>
+
+  <div id="cards"></div>
+  <div class="total"><span id="totalLabel">Total spent</span><strong id="totalSpent"></strong></div>
+  <button class="btn block trends-link" type="button" id="trendsBtn">📊 See monthly trends</button>
+
+  <h2>Entries</h2>
+  <ul id="entryList"></ul>
+  <p id="emptyMsg" hidden>No spending recorded this month.<br>Tap <b>+</b> to add one.</p>
+</main>
+
+<!-- ===== Trends ===== -->
+<section id="trends" class="wrap" hidden>
+  <header class="topbar">
+    <button class="icon-btn" id="trendsBack" aria-label="Back">‹</button>
+    <h1 class="tb-title">Trends</h1>
+    <div class="seg" role="group" aria-label="How many months">
+      <button type="button" data-range="6" aria-pressed="true">6 months</button>
+      <button type="button" data-range="12" aria-pressed="false">12 months</button>
+    </div>
+  </header>
+  <p class="range-note" id="rangeNote"></p>
+
+  <p id="trendsEmpty" hidden>No spending recorded in these months yet.</p>
+  <div id="trendsBody">
+    <div class="tiles">
+      <div class="tile"><span class="lbl">Average per month</span><span class="v" id="tAvg"></span><span class="s" id="tAvgSub"></span></div>
+      <div class="tile"><span class="lbl">Total spent</span><span class="v" id="tTotal"></span><span class="s" id="tTotalSub"></span></div>
+    </div>
+
+    <article class="card">
+      <h3 class="ct">Monthly spending</h3>
+      <div class="legend">
+        <span><i class="sw-petrol"></i>Petrol</span>
+        <span><i class="sw-parking"></i>Car park</span>
+        <span><i class="sw-carwash"></i>Car wash</span>
+        <span><i class="sw-other"></i>Other</span>
+      </div>
+      <div class="chart" id="chart"></div>
+    </article>
+
+    <article class="card">
+      <h3 class="ct">Where it goes</h3>
+      <ul class="breakdown" id="breakdown"></ul>
+    </article>
+
+    <article class="card">
+      <h3 class="ct">Against budget</h3>
+      <div class="tbl-wrap">
+        <table class="bt">
+          <thead><tr><th>Month</th><th>Petrol</th><th>Others</th><th>Total</th></tr></thead>
+          <tbody id="budgetRows"></tbody>
+        </table>
+      </div>
+    </article>
+  </div>
+</section>
+
+<button id="fab" aria-label="Add spending" hidden>+</button>
+
+<!-- ===== Add / edit entry ===== -->
+<dialog id="entryDlg" class="sheet">
+  <form id="entryForm" class="dlg-body" novalidate>
+    <div class="dlg-head">
+      <h3 id="entryTitle">Add spending</h3>
+      <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+    </div>
+    <div class="cats" role="group" aria-label="Category">
+      <button type="button" class="cat" data-cat="petrol"><span class="e">⛽</span>Petrol</button>
+      <button type="button" class="cat" data-cat="parking"><span class="e">🅿️</span>Car park</button>
+      <button type="button" class="cat" data-cat="carwash"><span class="e">🧽</span>Car wash</button>
+      <button type="button" class="cat" data-cat="other"><span class="e">🔧</span>Other</button>
+    </div>
+    <label class="field">
+      <span>Amount</span>
+      <div class="money big"><span class="cur" data-cur>S$</span>
+        <input class="input" id="entryAmount" inputmode="decimal" autocomplete="off" placeholder="0.00" enterkeyhint="done"></div>
+    </label>
+    <div class="row2">
+      <label class="field">
+        <span>Date</span>
+        <input class="input" id="entryDate" type="date" required>
+      </label>
+      <label class="field">
+        <span>Note (optional)</span>
+        <input class="input" id="entryNote" maxlength="200" autocomplete="off" placeholder="e.g. Shell">
+      </label>
+    </div>
+    <p class="err" id="entryErr" hidden></p>
+    <div class="actions">
+      <button class="btn danger" type="button" id="entryDelete" hidden>Delete</button>
+      <button class="btn primary" type="submit">Save</button>
+    </div>
+  </form>
+</dialog>
+
+<!-- ===== Settings ===== -->
+<dialog id="settingsDlg" class="sheet">
+  <div class="dlg-body">
+    <div class="dlg-head">
+      <h3>Settings</h3>
+      <button class="icon-btn" type="button" data-close aria-label="Close">✕</button>
+    </div>
+
+    <form id="settingsForm" novalidate>
+      <h4 style="margin:0 0 12px">Usual monthly budgets</h4>
+      <div class="row2">
+        <label class="field">
+          <span>⛽ Petrol</span>
+          <div class="money"><span class="cur" data-cur>S$</span>
+            <input class="input" id="setPetrol" inputmode="decimal" autocomplete="off"></div>
+        </label>
+        <label class="field">
+          <span>🅿️ Parking &amp; Others</span>
+          <div class="money"><span class="cur" data-cur>S$</span>
+            <input class="input" id="setOthers" inputmode="decimal" autocomplete="off"></div>
+        </label>
+      </div>
+
+      <div class="section">
+        <h4>Special budget for <span id="ovMonth"></span> only</h4>
+        <p class="hint">Leave empty to use the usual budget for this month.</p>
+        <div class="row2">
+          <label class="field">
+            <span>⛽ Petrol</span>
+            <div class="money"><span class="cur" data-cur>S$</span>
+              <input class="input" id="ovPetrol" inputmode="decimal" autocomplete="off"></div>
+          </label>
+          <label class="field">
+            <span>🅿️ Parking &amp; Others</span>
+            <div class="money"><span class="cur" data-cur>S$</span>
+              <input class="input" id="ovOthers" inputmode="decimal" autocomplete="off"></div>
+          </label>
+        </div>
+      </div>
+
+      <div class="section">
+        <label class="field">
+          <span>Currency</span>
+          <input class="input" id="setCurrency" maxlength="6" autocomplete="off">
+        </label>
+      </div>
+
+      <p class="err" id="settingsErr" hidden></p>
+      <button class="btn primary block" type="submit">Save settings</button>
+    </form>
+
+    <div class="section" style="margin-top:20px">
+      <h4>Your data</h4>
+      <p class="hint">Everything is stored only on this phone. Save a backup every month and keep the file somewhere safe (e.g. Google Drive).</p>
+      <div class="stack">
+        <button class="btn block" type="button" data-action="backup">💾 Save backup (JSON)</button>
+        <button class="btn block" type="button" data-action="restore">📂 Restore backup</button>
+        <button class="btn block" type="button" data-action="csv">📄 Export CSV</button>
+        <button class="btn danger block" type="button" data-action="clear">Delete all data</button>
+      </div>
+    </div>
+  </div>
+</dialog>
+
+<!-- ===== Confirm ===== -->
+<dialog id="confirmDlg" class="center">
+  <div class="dlg-body">
+    <p id="confirmMsg"></p>
+    <div class="actions">
+      <button class="btn" type="button" id="confirmNo">Cancel</button>
+      <button class="btn danger solid" type="button" id="confirmYes">OK</button>
+    </div>
+  </div>
+</dialog>
+
+<input type="file" id="restoreFile" accept="application/json,.json" hidden>
+<div id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+
+/* ================= Constants ================= */
+const STORE_KEY = 'carBudget.v1';
+const CATS = {
+  petrol:  { label: 'Petrol',   icon: '⛽', budget: 'petrol' },
+  parking: { label: 'Car park', icon: '🅿️', budget: 'others' },
+  carwash: { label: 'Car wash', icon: '🧽', budget: 'others' },
+  other:   { label: 'Other',    icon: '🔧', budget: 'others' },
+};
+const BUDGETS = {
+  petrol: { label: 'Petrol',           icon: '⛽' },
+  others: { label: 'Parking & Others', icon: '🅿️' },
+};
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS = ['Sun','Mon','Tue','Wed','Thu','Fri','Sat'];
+const MAX_CENTS = 100000000; // 1,000,000.00
+
+/* ================= Helpers ================= */
+const $ = (id) => document.getElementById(id);
+const pad = (n) => String(n).padStart(2, '0');
+const monthKey = (y, m) => `${y}-${pad(m + 1)}`;               // m is 0-11
+const localDate = (d) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+const todayStr = () => localDate(new Date());
+const monthName = (y, m) => `${MONTHS[m]} ${y}`;
+const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+function prettyDate(iso, withYear) {
+  const [y, m, d] = iso.split('-').map(Number);
+  const dt = new Date(y, m - 1, d);
+  return `${DAYS[dt.getDay()]}, ${d} ${MONTHS[m - 1].slice(0, 3)}${withYear ? ' ' + y : ''}`;
+}
+
+/** Money as text, e.g. 21450 -> "S$214.50". Always positive; callers add wording. */
+function money(cents) {
+  const abs = Math.abs(cents);
+  const whole = Math.floor(abs / 100).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ',');
+  return `${state ? state.currency : 'S$'}${whole}.${pad(abs % 100)}`;
+}
+
+/** Cents as a plain "85.50" string for input fields. */
+const centsToInput = (c) => `${Math.floor(c / 100)}.${pad(c % 100)}`;
+
+/**
+ * Parse what the user typed into integer cents without floating-point maths.
+ * Accepts "85", "85.5", "85.50", "85,50", "1,234.50". Returns null if invalid.
+ */
+function parseCents(str) {
+  let s = String(str || '').replace(/\s/g, '');
+  if (s.includes(',') && s.includes('.')) s = s.replace(/,/g, '');
+  else s = s.replace(',', '.');
+  if (!/^\d*\.?\d{0,2}$/.test(s) || s === '' || s === '.') return null;
+  const [w, f = ''] = s.split('.');
+  const cents = Number(w || '0') * 100 + Number((f + '00').slice(0, 2));
+  return cents > MAX_CENTS ? null : cents;
+}
+
+/* ================= State & storage ================= */
+let state = null;   // see normalizeState for shape; amounts are integer cents
+const now = new Date();
+let view = { y: now.getFullYear(), m: now.getMonth() };
+let editing = null;  // entry being edited, or null when adding
+let selectedCat = 'petrol';
+
+/**
+ * Validate and clean data loaded from storage or a backup file.
+ * Accepts our backup wrapper, our stored format (cents), or the plain format
+ * from the project plan (amounts in dollars), and always returns cents.
+ */
+function normalizeState(o) {
+  if (o && o.app === 'car-budget' && o.data) o = o.data;
+  if (!o || typeof o !== 'object' || !o.budgets || typeof o.budgets !== 'object' || !Array.isArray(o.entries)) {
+    throw new Error('This file is not a Car Budget backup.');
+  }
+  const inCents = o.amountUnit === 'cents';
+  const toCents = (v) => {
+    const n = Number(v);
+    if (!Number.isFinite(n) || n < 0) return 0;
+    return Math.min(MAX_CENTS, inCents ? Math.round(n) : Math.round(n * 100));
+  };
+  const s = {
+    amountUnit: 'cents',
+    currency: typeof o.currency === 'string' && o.currency.trim() ? o.currency.trim().slice(0, 6) : 'S$',
+    budgets: { petrol: toCents(o.budgets.petrol), others: toCents(o.budgets.others) },
+    monthOverrides: {},
+    entries: [],
+    lastCat: CATS[o.lastCat] ? o.lastCat : 'petrol',
+  };
+  for (const [k, v] of Object.entries(o.monthOverrides || {})) {
+    if (!/^\d{4}-\d{2}$/.test(k) || !v || typeof v !== 'object') continue;
+    const ov = {};
+    if (v.petrol != null && v.petrol !== '') ov.petrol = toCents(v.petrol);
+    if (v.others != null && v.others !== '') ov.others = toCents(v.others);
+    if (Object.keys(ov).length) s.monthOverrides[k] = ov;
+  }
+  const ids = new Set();
+  for (const e of o.entries) {
+    if (!e || !CATS[e.cat] || typeof e.date !== 'string' || !/^\d{4}-\d{2}-\d{2}$/.test(e.date)) continue;
+    let id = Number(e.id);
+    if (!Number.isFinite(id)) id = Date.now();
+    while (ids.has(id)) id++;
+    ids.add(id);
+    s.entries.push({
+      id, cat: e.cat, amount: toCents(e.amount), date: e.date,
+      note: typeof e.note === 'string' ? e.note.slice(0, 200) : '',
+    });
+  }
+  return s;
+}
+
+function load() {
+  let raw = null;
+  try {
+    raw = localStorage.getItem(STORE_KEY);
+  } catch (err) {
+    toast('This browser is blocking storage, so entries will not be kept.', true);
+    return null;
+  }
+  if (!raw) return null;
+  try {
+    return normalizeState(JSON.parse(raw));
+  } catch (err) {
+    // Keep the unreadable data aside instead of overwriting it.
+    try { localStorage.setItem(`${STORE_KEY}.unreadable.${Date.now()}`, raw); } catch (_) {}
+    toast('Saved data could not be read. Please restore a backup.', true);
+    return null;
+  }
+}
+
+function save() {
+  try {
+    localStorage.setItem(STORE_KEY, JSON.stringify(state));
+    return true;
+  } catch (err) {
+    toast('Could not save on this phone. Storage may be full or blocked.', true);
+    return false;
+  }
+}
+
+function nextId() {
+  let id = Date.now();
+  while (state.entries.some((e) => e.id === id)) id++;
+  return id;
+}
+
+const budgetFor = (key, b) => {
+  const ov = state.monthOverrides[key];
+  return ov && ov[b] != null ? ov[b] : state.budgets[b];
+};
+
+/* ================= Rendering ================= */
+function applyCurrency() {
+  const cur = state ? state.currency : ($('setupCurrency').value.trim() || 'S$');
+  document.querySelectorAll('[data-cur]').forEach((el) => { el.textContent = cur; });
+  document.querySelectorAll('.money').forEach((el) => el.style.setProperty('--cur-w', `${cur.length + 0.4}ch`));
+}
+
+function level(spent, budget) {
+  if (budget <= 0) return spent > 0 ? 'over' : 'ok';
+  const r = spent / budget;
+  if (r > 1) return 'over';
+  if (r >= 0.8) return 'warn';
+  return 'ok';
+}
+
+function render() {
+  const key = monthKey(view.y, view.m);
+  const isNow = view.y === new Date().getFullYear() && view.m === new Date().getMonth();
+  $('monthText').textContent = monthName(view.y, view.m);
+  $('backToNow').hidden = isNow;
+
+  const entries = state.entries
+    .filter((e) => e.date.startsWith(key + '-'))
+    .sort((a, b) => (a.date < b.date ? 1 : a.date > b.date ? -1 : b.id - a.id));
+
+  const spent = { petrol: 0, others: 0 };
+  const byCat = { petrol: 0, parking: 0, carwash: 0, other: 0 };
+  for (const e of entries) {
+    spent[CATS[e.cat].budget] += e.amount;
+    byCat[e.cat] += e.amount;
+  }
+
+  // Budget cards
+  $('cards').innerHTML = Object.keys(BUDGETS).map((b) => {
+    const budget = budgetFor(key, b);
+    const sp = spent[b];
+    const bal = budget - sp;
+    const lvl = level(sp, budget);
+    const pct = budget > 0 ? Math.round((sp / budget) * 100) : (sp > 0 ? 100 : 0);
+    const special = state.monthOverrides[key] && state.monthOverrides[key][b] != null;
+    let foot = '';
+    if (b === 'others' && sp > 0) {
+      foot = ['parking', 'carwash', 'other'].filter((c) => byCat[c] > 0)
+        .map((c) => `${CATS[c].label} ${money(byCat[c])}`).join(' · ');
+    }
+    return `
+      <article class="card lvl-${lvl}">
+        <div class="card-head">
+          <span class="card-title">${BUDGETS[b].icon} ${esc(BUDGETS[b].label)}</span>
+          ${special ? '<span class="tag">Special budget this month</span>' : ''}
+        </div>
+        <div class="stats">
+          <div class="stat"><span class="lbl">Budget</span><span class="val">${money(budget)}</span></div>
+          <div class="stat"><span class="lbl">Spent</span><span class="val">${money(sp)}</span></div>
+          <div class="stat balance"><span class="lbl">${bal < 0 ? 'Over by' : 'Balance left'}</span><span class="val">${money(bal)}</span></div>
+        </div>
+        <div class="bar" role="progressbar" aria-label="${esc(BUDGETS[b].label)} used" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${pct}">
+          <div class="fill" style="width:${Math.min(100, pct)}%"></div>
+        </div>
+        <div class="card-foot"><span>${esc(foot)}</span><span>${pct}% used</span></div>
+      </article>`;
+  }).join('');
+
+  $('totalLabel').textContent = `Total spent in ${MONTHS[view.m]}`;
+  $('totalSpent').textContent = money(spent.petrol + spent.others);
+
+  // Entry list
+  $('entryList').innerHTML = entries.map((e) => `
+    <li><button class="entry" type="button" data-id="${e.id}">
+      <span class="ico">${CATS[e.cat].icon}</span>
+      <span class="main"><span class="name">${CATS[e.cat].label}</span>${e.note ? `<span class="note">${esc(e.note)}</span>` : ''}</span>
+      <span class="right"><span class="amt">${money(e.amount)}</span><span class="date">${prettyDate(e.date)}</span></span>
+    </button></li>`).join('');
+  $('emptyMsg').hidden = entries.length > 0;
+}
+
+function showSetup() {
+  $('home').hidden = true;
+  $('trends').hidden = true;
+  $('fab').hidden = true;
+  $('setup').hidden = false;
+  $('setupErr').hidden = true;
+  applyCurrency();
+}
+
+function showHome() {
+  $('setup').hidden = true;
+  $('trends').hidden = true;
+  $('home').hidden = false;
+  $('fab').hidden = false;
+  applyCurrency();
+  render();
+}
+
+function changeMonth(delta) {
+  const d = new Date(view.y, view.m + delta, 1);
+  view = { y: d.getFullYear(), m: d.getMonth() };
+  render();
+}
+
+/* ================= Toast & confirm ================= */
+let toastTimer;
+function toast(msg, bad) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.className = bad ? 'bad' : '';
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, bad ? 5000 : 2500);
+}
+
+function askConfirm(message, okLabel) {
+  return new Promise((resolve) => {
+    const dlg = $('confirmDlg');
+    $('confirmMsg').textContent = message;
+    $('confirmYes').textContent = okLabel || 'OK';
+    const done = (result) => {
+      $('confirmYes').onclick = $('confirmNo').onclick = dlg.onclose = null;
+      if (dlg.open) dlg.close();
+      resolve(result);
+    };
+    $('confirmYes').onclick = () => done(true);
+    $('confirmNo').onclick = () => done(false);
+    dlg.onclose = () => done(false);
+    dlg.showModal();
+  });
+}
+
+function showErr(id, msg) {
+  const el = $(id);
+  el.textContent = msg || '';
+  el.hidden = !msg;
+}
+
+/* ================= Setup ================= */
+$('setupCurrency').addEventListener('input', applyCurrency);
+$('setupForm').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const petrol = parseCents($('setupPetrol').value);
+  const others = parseCents($('setupOthers').value);
+  if (petrol == null) return showErr('setupErr', 'Enter your Petrol budget, e.g. 300');
+  if (others == null) return showErr('setupErr', 'Enter your Parking & Others budget, e.g. 150 (or 0)');
+  state = normalizeState({
+    amountUnit: 'cents',
+    currency: $('setupCurrency').value,
+    budgets: { petrol, others },
+    monthOverrides: {},
+    entries: [],
+  });
+  save();
+  showHome();
+});
+
+/* ================= Add / edit entry ================= */
+function selectCat(cat) {
+  selectedCat = cat;
+  document.querySelectorAll('.cat').forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.cat === cat)));
+}
+
+function openEntry(entry) {
+  editing = entry || null;
+  $('entryTitle').textContent = entry ? 'Edit spending' : 'Add spending';
+  selectCat(entry ? entry.cat : state.lastCat);
+  $('entryAmount').value = entry ? centsToInput(entry.amount) : '';
+  $('entryDate').value = entry ? entry.date : todayStr();
+  $('entryNote').value = entry ? entry.note : '';
+  $('entryDelete').hidden = !entry;
+  showErr('entryErr', '');
+  $('entryDlg').showModal();
+  if (!entry) $('entryAmount').focus();
+}
+
+document.querySelectorAll('.cat').forEach((b) => b.addEventListener('click', () => {
+  selectCat(b.dataset.cat);
+  $('entryAmount').focus();
+}));
+
+$('fab').addEventListener('click', () => openEntry(null));
+
+$('entryList').addEventListener('click', (ev) => {
+  const btn = ev.target.closest('.entry');
+  if (!btn) return;
+  const entry = state.entries.find((e) => e.id === Number(btn.dataset.id));
+  if (entry) openEntry(entry);
+});
+
+$('entryForm').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const amount = parseCents($('entryAmount').value);
+  const date = $('entryDate').value;
+  const note = $('entryNote').value.trim();
+  if (amount == null || amount <= 0) return showErr('entryErr', 'Enter the amount, e.g. 85.50');
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) return showErr('entryErr', 'Pick a date');
+
+  if (editing) {
+    Object.assign(editing, { cat: selectedCat, amount, date, note });
+  } else {
+    state.entries.push({ id: nextId(), cat: selectedCat, amount, date, note });
+  }
+  state.lastCat = selectedCat;
+  if (!save()) return;
+  const wasEdit = !!editing;
+  $('entryDlg').close();
+
+  // Jump to the month the entry belongs to, so it is visible.
+  const [y, m] = date.split('-').map(Number);
+  view = { y, m: m - 1 };
+  render();
+  toast(wasEdit ? 'Entry updated' : `Saved ${money(amount)} ${CATS[selectedCat].label}`);
+});
+
+$('entryDelete').addEventListener('click', async () => {
+  const e = editing;
+  if (!e) return;
+  const ok = await askConfirm(`Delete ${CATS[e.cat].label} ${money(e.amount)} on ${prettyDate(e.date, true)}?`, 'Delete');
+  if (!ok) return;
+  state.entries = state.entries.filter((x) => x.id !== e.id);
+  save();
+  $('entryDlg').close();
+  render();
+  toast('Entry deleted');
+});
+
+/* ================= Settings ================= */
+function openSettings() {
+  const key = monthKey(view.y, view.m);
+  const ov = state.monthOverrides[key] || {};
+  $('setPetrol').value = centsToInput(state.budgets.petrol);
+  $('setOthers').value = centsToInput(state.budgets.others);
+  $('ovMonth').textContent = monthName(view.y, view.m);
+  $('ovPetrol').value = ov.petrol != null ? centsToInput(ov.petrol) : '';
+  $('ovOthers').value = ov.others != null ? centsToInput(ov.others) : '';
+  $('ovPetrol').placeholder = `Usual ${centsToInput(state.budgets.petrol)}`;
+  $('ovOthers').placeholder = `Usual ${centsToInput(state.budgets.others)}`;
+  $('setCurrency').value = state.currency;
+  showErr('settingsErr', '');
+  $('settingsDlg').showModal();
+}
+
+$('settingsBtn').addEventListener('click', openSettings);
+
+$('settingsForm').addEventListener('submit', (ev) => {
+  ev.preventDefault();
+  const petrol = parseCents($('setPetrol').value);
+  const others = parseCents($('setOthers').value);
+  if (petrol == null || others == null) return showErr('settingsErr', 'Enter both usual budgets (numbers like 300 or 150.50).');
+
+  const ov = {};
+  for (const [b, id] of [['petrol', 'ovPetrol'], ['others', 'ovOthers']]) {
+    const raw = $(id).value.trim();
+    if (!raw) continue;
+    const c = parseCents(raw);
+    if (c == null) return showErr('settingsErr', 'The special budget must be a number, or left empty.');
+    ov[b] = c;
+  }
+
+  const cur = $('setCurrency').value.trim();
+  if (!cur) return showErr('settingsErr', 'Enter a currency, e.g. S$');
+
+  const key = monthKey(view.y, view.m);
+  state.budgets = { petrol, others };
+  if (Object.keys(ov).length) state.monthOverrides[key] = ov;
+  else delete state.monthOverrides[key];
+  state.currency = cur.slice(0, 6);
+  if (!save()) return;
+  $('settingsDlg').close();
+  applyCurrency();
+  render();
+  toast('Settings saved');
+});
+
+/* ================= Data: export / backup / restore / clear ================= */
+function download(filename, text, mime) {
+  const blob = new Blob([text], { type: mime });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  setTimeout(() => URL.revokeObjectURL(url), 10000);
+}
+
+function exportCsv() {
+  const q = (v) => `"${String(v).replace(/"/g, '""')}"`;
+  const rows = [['Date', 'Category', 'Budget', 'Amount', 'Currency', 'Note']];
+  [...state.entries]
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.id - b.id))
+    .forEach((e) => rows.push([
+      e.date, CATS[e.cat].label, BUDGETS[CATS[e.cat].budget].label,
+      centsToInput(e.amount), state.currency, e.note,
+    ]));
+  const csv = '﻿' + rows.map((r) => r.map(q).join(',')).join('\r\n') + '\r\n';
+  download(`car-budget-${todayStr()}.csv`, csv, 'text/csv;charset=utf-8');
+  toast('CSV exported. Check your Downloads.');
+}
+
+function saveBackup() {
+  const payload = { app: 'car-budget', version: 1, exportedAt: new Date().toISOString(), data: state };
+  download(`car-budget-backup-${todayStr()}.json`, JSON.stringify(payload, null, 2), 'application/json');
+  toast('Backup saved. Check your Downloads.');
+}
+
+$('restoreFile').addEventListener('change', async (ev) => {
+  const file = ev.target.files[0];
+  ev.target.value = '';
+  if (!file) return;
+  let restored;
+  try {
+    restored = normalizeState(JSON.parse(await file.text()));
+  } catch (err) {
+    toast(err instanceof SyntaxError ? 'That file is not a Car Budget backup.' : err.message, true);
+    return;
+  }
+  if (state) {
+    const ok = await askConfirm(
+      `Replace everything on this phone with this backup (${restored.entries.length} entries)?`, 'Restore');
+    if (!ok) return;
+  }
+  state = restored;
+  if (!save()) return;
+  if ($('settingsDlg').open) $('settingsDlg').close();
+  const t = new Date();
+  view = { y: t.getFullYear(), m: t.getMonth() };
+  showHome();
+  toast(`Backup restored: ${state.entries.length} entries`);
+});
+
+async function clearAll() {
+  const ok = await askConfirm('Delete ALL entries and budgets from this phone? This cannot be undone. Save a backup first if you might need them.', 'Delete everything');
+  if (!ok) return;
+  try { localStorage.removeItem(STORE_KEY); } catch (_) {}
+  state = null;
+  $('settingsDlg').close();
+  $('setupPetrol').value = '';
+  $('setupOthers').value = '';
+  showSetup();
+  toast('All data deleted');
+}
+
+document.addEventListener('click', (ev) => {
+  const act = ev.target.closest('[data-action]');
+  if (act) {
+    const a = act.dataset.action;
+    if (a === 'csv') exportCsv();
+    else if (a === 'backup') saveBackup();
+    else if (a === 'restore') $('restoreFile').click();
+    else if (a === 'clear') clearAll();
+    return;
+  }
+  if (ev.target.closest('[data-close]')) ev.target.closest('dialog').close();
+});
+
+// Tap the dark area outside a sheet to close it.
+document.querySelectorAll('dialog.sheet').forEach((dlg) => dlg.addEventListener('click', (ev) => {
+  if (ev.target === dlg) dlg.close();
+}));
+
+/* ================= Trends ================= */
+const CAT_ORDER = ['petrol', 'parking', 'carwash', 'other'];  // fixed stack & colour order
+let trendRange = 6;
+let trendMonths = [];
+
+const shortMonth = (o) => MONTHS[o.m].slice(0, 3);
+const axisMoney = (cents) => `${state.currency}${Math.round(cents / 100).toLocaleString('en-US')}`;
+const budgetMoney = (cents) => (cents % 100 === 0 ? axisMoney(cents) : money(cents));  // "S$300" not "S$300.00"
+
+/** The last `n` calendar months ending at the month being viewed, with totals. */
+function monthSeries(n) {
+  const out = [];
+  for (let i = n - 1; i >= 0; i--) {
+    const d = new Date(view.y, view.m - i, 1);
+    const y = d.getFullYear(), m = d.getMonth(), key = monthKey(y, m);
+    out.push({
+      y, m, key, total: 0,
+      byCat: { petrol: 0, parking: 0, carwash: 0, other: 0 },
+      spent: { petrol: 0, others: 0 },
+      budget: { petrol: budgetFor(key, 'petrol'), others: budgetFor(key, 'others') },
+    });
+  }
+  const byKey = new Map(out.map((o) => [o.key, o]));
+  for (const e of state.entries) {
+    const o = byKey.get(e.date.slice(0, 7));
+    if (!o) continue;
+    o.byCat[e.cat] += e.amount;
+    o.spent[CATS[e.cat].budget] += e.amount;
+    o.total += e.amount;
+  }
+  return out;
+}
+
+function niceStep(raw) {
+  const p = 10 ** Math.floor(Math.log10(raw));
+  const f = raw / p;
+  return (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+}
+
+function openTrends() {
+  history.pushState({ trends: true }, '');
+  $('home').hidden = true;
+  $('fab').hidden = true;
+  $('trends').hidden = false;
+  window.scrollTo(0, 0);
+  renderTrends();
+}
+
+function closeTrends() {
+  if (history.state && history.state.trends) history.back();  // popstate shows home
+  else showHome();
+}
+
+function renderTrends() {
+  const months = trendMonths = monthSeries(trendRange);
+  const first = months[0], last = months[months.length - 1];
+  const rangeText = first.y === last.y
+    ? `${shortMonth(first)} – ${shortMonth(last)} ${last.y}`
+    : `${shortMonth(first)} ${first.y} – ${shortMonth(last)} ${last.y}`;
+  $('rangeNote').textContent = rangeText;
+  document.querySelectorAll('[data-range]').forEach((b) =>
+    b.setAttribute('aria-pressed', String(Number(b.dataset.range) === trendRange)));
+
+  const total = months.reduce((s, o) => s + o.total, 0);
+  $('trendsEmpty').hidden = total > 0;
+  $('trendsBody').hidden = total === 0;
+  if (!total) return;
+
+  // Average only over months since the first entry, so empty months before you
+  // started using the app don't drag it down.
+  const earliest = state.entries.reduce((a, e) => (e.date < a ? e.date : a), '9999').slice(0, 7);
+  const active = months.filter((o) => o.key >= earliest).length || 1;
+  $('tAvg').textContent = money(Math.round(total / active));
+  $('tAvgSub').textContent = `over ${active} month${active > 1 ? 's' : ''}`;
+  $('tTotal').textContent = money(total);
+  $('tTotalSub').textContent = rangeText;
+
+  renderTrendChart(months);
+
+  // Where it goes: category share of the whole period, largest first.
+  const catTotals = CAT_ORDER.map((c) => ({ c, v: months.reduce((s, o) => s + o.byCat[c], 0) }))
+    .sort((a, b) => b.v - a.v);
+  const top = catTotals[0].v || 1;
+  $('breakdown').innerHTML = catTotals.map(({ c, v }) => `
+    <li>
+      <div class="top"><span>${CATS[c].icon} ${CATS[c].label}</span><span>${money(v)} · ${Math.round((v / total) * 100)}%</span></div>
+      <div class="bar2 sw-${c}" style="width:${v ? Math.max(1, (v / top) * 100) : 0}%"></div>
+    </li>`).join('');
+
+  // Against budget table, newest month first.
+  const cell = (spent, budget) => {
+    let sub;
+    if (budget > 0 && spent > budget) sub = `<small class="over">▲ Over ${money(spent - budget)}</small>`;
+    else if (budget > 0 && spent >= budget * 0.8) sub = `<small class="warn">⚠ ${Math.round((spent / budget) * 100)}% used</small>`;
+    else if (budget <= 0 && spent > 0) sub = '<small class="over">▲ No budget</small>';
+    else sub = `<small>of ${budgetMoney(budget)}</small>`;
+    return `<td>${money(spent)}${sub}</td>`;
+  };
+  // Skip months before the first-ever entry; they are just rows of zeros.
+  $('budgetRows').innerHTML = [...months].reverse().filter((o) => o.key >= earliest).map((o) => `
+    <tr>
+      <td>${shortMonth(o)} ${String(o.y).slice(2)}</td>
+      ${cell(o.spent.petrol, o.budget.petrol)}
+      ${cell(o.spent.others, o.budget.others)}
+      <td><b>${money(o.total)}</b><small>of ${budgetMoney(o.budget.petrol + o.budget.others)}</small></td>
+    </tr>`).join('');
+}
+
+function renderTrendChart(months) {
+  const box = $('chart');
+  const W = Math.max(280, Math.round(box.clientWidth || 320));
+  const H = 210, L = 46, R = 6, T = 22, B = 24;
+  const plotW = W - L - R, plotH = H - T - B;
+  const n = months.length;
+  const max = Math.max(...months.map((o) => o.total));
+  const step = niceStep(Math.max(max / 4, 100));
+  const yMax = Math.max(step, Math.ceil(max / step) * step);
+  const y = (v) => T + plotH - (v / yMax) * plotH;
+  const slot = plotW / n;
+  const bw = Math.min(24, slot * 0.6);
+
+  let svg = '';
+  for (let v = 0; v <= yMax + 1e-9; v += step) {
+    const yy = Math.round(y(v)) + 0.5;
+    svg += `<line class="${v === 0 ? 'base' : 'grid'}" x1="${L}" x2="${W - R}" y1="${yy}" y2="${yy}"/>`;
+    svg += `<text class="ax" x="${L - 6}" y="${yy + 4}" text-anchor="end">${esc(axisMoney(v))}</text>`;
+  }
+
+  months.forEach((o, i) => {
+    const cx = L + slot * (i + 0.5);
+    const x = cx - bw / 2;
+    const segs = CAT_ORDER.filter((c) => o.byCat[c] > 0);
+    let base = y(0);
+    let col = '';
+    segs.forEach((c, si) => {
+      const h = (o.byCat[c] / yMax) * plotH;
+      const isTop = si === segs.length - 1;
+      const gap = isTop ? 0 : Math.min(2, h / 2);        // 2px surface gap between segments
+      const top = base - h, drawH = h - gap;
+      if (drawH > 0) {
+        if (isTop) {
+          const r = Math.min(4, drawH, bw / 2);          // rounded data-end only on the top
+          col += `<path class="f-${c}" d="M${x},${base} V${top + r} Q${x},${top} ${x + r},${top} H${x + bw - r} Q${x + bw},${top} ${x + bw},${top + r} V${base} Z"/>`;
+        } else {
+          col += `<rect class="f-${c}" x="${x}" y="${top + gap}" width="${bw}" height="${drawH}"/>`;
+        }
+      }
+      base = top;
+    });
+    svg += `<g class="col" data-i="${i}">${col}</g>`;
+    const label = n > 6 && W < 400 ? shortMonth(o).charAt(0) : shortMonth(o);
+    svg += `<text class="ax" x="${cx}" y="${H - 6}" text-anchor="middle">${label}</text>`;
+    if (i === n - 1 && o.total > 0) {  // label only the latest month on its cap
+      const text = axisMoney(o.total);
+      const textW = text.length * 6.5;
+      // A label wider than its slot spills over the previous column: lift it clear of that one too.
+      const prevTop = i > 0 && textW > slot ? y(months[i - 1].total) : Infinity;
+      const ly = Math.min(y(o.total), prevTop) - 6;
+      const lx = Math.min(cx, W - R - textW / 2);
+      svg += `<text class="cap" x="${lx}" y="${Math.max(10, ly)}" text-anchor="middle">${esc(text)}</text>`;
+    }
+    svg += `<rect class="hit" data-i="${i}" x="${L + slot * i}" y="${T - 10}" width="${slot}" height="${plotH + 10 + B}" tabindex="0" aria-label="${esc(monthName(o.y, o.m))}: ${esc(money(o.total))}"/>`;
+  });
+
+  box.innerHTML = `<svg viewBox="0 0 ${W} ${H}" height="${H}" role="img" aria-label="Spending per month by category">${svg}</svg><div class="tip" hidden></div>`;
+}
+
+function showTip(i) {
+  const o = trendMonths[i];
+  const box = $('chart');
+  const svg = box.querySelector('svg');
+  const tip = box.querySelector('.tip');
+  if (!o || !svg) return;
+  svg.classList.add('has-active');
+  svg.querySelectorAll('.col').forEach((g) => g.classList.toggle('active', Number(g.dataset.i) === i));
+
+  tip.replaceChildren();
+  const title = document.createElement('div');
+  title.className = 't';
+  title.textContent = monthName(o.y, o.m);
+  tip.append(title);
+  const row = (key, value, name, extra) => {
+    const r = document.createElement('div');
+    r.className = 'r' + (extra || '');
+    if (key) { const k = document.createElement('span'); k.className = `k sw-${key}`; r.append(k); }
+    const b = document.createElement('b'); b.textContent = value;
+    const s = document.createElement('span'); s.className = 'n'; s.textContent = name;
+    r.append(b, s);
+    tip.append(r);
+  };
+  CAT_ORDER.forEach((c) => { if (o.byCat[c]) row(c, money(o.byCat[c]), CATS[c].label); });
+  row(null, money(o.total), `of ${budgetMoney(o.budget.petrol + o.budget.others)}`, ' sum');
+
+  tip.hidden = false;
+  const W = box.clientWidth;
+  const vbW = svg.viewBox.baseVal.width;
+  const slot = (vbW - 46 - 6) / trendMonths.length;
+  const cx = ((46 + slot * (i + 0.5)) / vbW) * W;
+  const tw = tip.offsetWidth;
+  // Sit beside the column so it never covers the bar being read.
+  let left = cx + 16;
+  if (left + tw > W) left = cx - 16 - tw;
+  tip.style.left = `${Math.max(0, left)}px`;
+}
+
+function hideTip() {
+  const box = $('chart');
+  const svg = box.querySelector('svg');
+  if (svg) svg.classList.remove('has-active');
+  const tip = box.querySelector('.tip');
+  if (tip) tip.hidden = true;
+}
+
+$('trendsBtn').addEventListener('click', openTrends);
+$('trendsBack').addEventListener('click', closeTrends);
+window.addEventListener('popstate', () => { if (!$('trends').hidden) showHome(); });
+document.querySelectorAll('[data-range]').forEach((b) => b.addEventListener('click', () => {
+  trendRange = Number(b.dataset.range);
+  renderTrends();
+}));
+$('chart').addEventListener('pointerover', (ev) => {
+  const hit = ev.target.closest('.hit');
+  if (hit) showTip(Number(hit.dataset.i));
+});
+$('chart').addEventListener('pointerdown', (ev) => {
+  const hit = ev.target.closest('.hit');
+  if (hit) showTip(Number(hit.dataset.i));
+});
+$('chart').addEventListener('pointerleave', (ev) => { if (ev.pointerType === 'mouse') hideTip(); });
+$('chart').addEventListener('focusin', (ev) => {
+  const hit = ev.target.closest('.hit');
+  if (hit) showTip(Number(hit.dataset.i));
+});
+$('chart').addEventListener('focusout', hideTip);
+document.addEventListener('pointerdown', (ev) => { if (!ev.target.closest('#chart')) hideTip(); });
+let resizeTimer, lastWidth = window.innerWidth;
+window.addEventListener('resize', () => {
+  clearTimeout(resizeTimer);
+  resizeTimer = setTimeout(() => {
+    // Only redraw on width changes (not the phone's address bar sliding in and out).
+    if (window.innerWidth === lastWidth) return;
+    lastWidth = window.innerWidth;
+    if (!$('trends').hidden) renderTrends();
+  }, 150);
+});
+
+/* ================= Month navigation ================= */
+$('prevMonth').addEventListener('click', () => changeMonth(-1));
+$('nextMonth').addEventListener('click', () => changeMonth(1));
+$('monthLabel').addEventListener('click', () => {
+  const t = new Date();
+  view = { y: t.getFullYear(), m: t.getMonth() };
+  render();
+});
+document.addEventListener('keydown', (ev) => {
+  if (!state || document.querySelector('dialog[open]') || $('home').hidden) return;
+  if (ev.key === 'ArrowLeft') changeMonth(-1);
+  if (ev.key === 'ArrowRight') changeMonth(1);
+});
+
+/* ================= Start ================= */
+if (navigator.storage && navigator.storage.persist) {
+  navigator.storage.persist().catch(() => {});
+}
+state = load();
+if (state) showHome(); else showSetup();
+
+// Offline support. Service workers only run from a web address (not a file on the PC).
+if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
+  const hadController = !!navigator.serviceWorker.controller;
+  navigator.serviceWorker.register('sw.js').catch((err) => console.warn('Offline mode unavailable:', err));
+  // When a new version has just been installed, reload once to show it -
+  // but never while a form is open, so nothing being typed is lost.
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (hadController && !document.querySelector('dialog[open]')) location.reload();
+  });
+}
+</script>
+</body>
+</html>
