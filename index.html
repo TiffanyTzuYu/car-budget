@@ -6,11 +6,18 @@
 <meta name="theme-color" content="#f2f2f7" media="(prefers-color-scheme: light)">
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Car Budget">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
 <title>Car Budget</title>
 <script>
   try {
     const t = localStorage.getItem('carBudget.theme');
-    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+    if (t === 'light' || t === 'dark') {
+      document.documentElement.dataset.theme = t;
+      document.querySelector('meta[name="color-scheme"]').content = t === 'light' ? 'only light' : 'dark';
+    }
   } catch (_) {}
 </script>
 <link rel="manifest" href="manifest.webmanifest">
@@ -48,7 +55,8 @@
     --c-trend: #5856d6;
     --grid: #e5e5ea;
     --axis: #c7c7cc;
-    color-scheme: light;
+    /* "only" stops Android Chrome's automatic dark mode from greying out the light theme */
+    color-scheme: only light;
   }
   @media (prefers-color-scheme: dark) {
     :root:not([data-theme="light"]) {
@@ -710,7 +718,7 @@
 'use strict';
 
 /* ================= Constants ================= */
-const APP_VERSION = 6;   // keep in step with CACHE in sw.js
+const APP_VERSION = 7;   // keep in step with CACHE in sw.js
 const STORE_KEY = 'carBudget.v1';
 const CATS = {
   petrol:  { label: 'Petrol',   budget: 'petrol' },
@@ -1224,6 +1232,8 @@ function applyTheme(t) {
   const root = document.documentElement;
   if (t === 'light' || t === 'dark') root.dataset.theme = t;
   else delete root.dataset.theme;
+  document.querySelector('meta[name="color-scheme"]').content =
+    t === 'light' ? 'only light' : t === 'dark' ? 'dark' : 'light dark';
   // Match the phone's status bar to the app.
   const dark = t === 'dark' || (t !== 'light' && darkQuery.matches);
   document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
