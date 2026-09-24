@@ -7,6 +7,12 @@
 <meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
 <meta name="color-scheme" content="light dark">
 <title>Car Budget</title>
+<script>
+  try {
+    const t = localStorage.getItem('carBudget.theme');
+    if (t === 'light' || t === 'dark') document.documentElement.dataset.theme = t;
+  } catch (_) {}
+</script>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="icon-192.png">
 <link rel="apple-touch-icon" href="icon-192.png">
@@ -45,7 +51,7 @@
     color-scheme: light;
   }
   @media (prefers-color-scheme: dark) {
-    :root {
+    :root:not([data-theme="light"]) {
       --bg: #000000;
       --card: #1c1c1e;
       --sheet-bg: #1c1c1e;
@@ -77,6 +83,38 @@
       --axis: #48484a;
       color-scheme: dark;
     }
+  }
+  :root[data-theme="dark"] {
+    --bg: #000000;
+    --card: #1c1c1e;
+    --sheet-bg: #1c1c1e;
+    --row: #2c2c2e;
+    --label: #ffffff;
+    --label2: rgba(235, 235, 245, .6);
+    --label3: rgba(235, 235, 245, .3);
+    --sep: rgba(84, 84, 88, .65);
+    --fill: rgba(118, 118, 128, .24);
+    --tint: #0a84ff;
+    --green: #30d158;
+    --orange: #ff9f0a;
+    --red: #ff453a;
+    --yellow: #ffd60a;
+    --warn-text: #ffd60a;
+    --ok-text: #30d158;
+    --over-text: #ff453a;
+    --track: rgba(120, 120, 128, .32);
+    --bar-bg: rgba(0, 0, 0, .72);
+    --thumb: #636366;
+    --tip-shadow: 0 8px 28px rgba(0, 0, 0, .5);
+    --c-petrol: #3987e5;
+    --c-parking: #d95926;
+    --c-carwash: #199e70;
+    --c-other: #c98500;
+    --c-others: #98989d;
+    --c-trend: #5e5ce6;
+    --grid: #2c2c2e;
+    --axis: #48484a;
+    color-scheme: dark;
   }
 
   * { box-sizing: border-box; }
@@ -327,6 +365,8 @@
   .segmented button { min-height: 34px; border-radius: 7px; font-size: 14px; font-weight: 500; color: var(--label); }
   .segmented button[aria-pressed="true"] { background: var(--thumb); font-weight: 600; box-shadow: 0 3px 8px rgba(0, 0, 0, .12), 0 1px 1px rgba(0, 0, 0, .04); }
   .segmented button:active { opacity: .7; }
+  .segmented.mini { margin: 0 0 0 auto; width: 186px; }
+  .segmented.mini button { min-height: 30px; font-size: 13px; }
   .range-note { margin: 0 4px 18px; color: var(--label2); font-size: 15px; }
   .tiles { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 24px; }
   .tile { background: var(--card); border-radius: 14px; padding: 14px; }
@@ -626,6 +666,14 @@
 
     <h4 class="sec-h">General</h4>
     <div class="group">
+      <div class="row">
+        <span class="row-label">Appearance</span>
+        <div class="segmented mini" role="group" aria-label="Appearance">
+          <button type="button" data-theme-opt="auto">Auto</button>
+          <button type="button" data-theme-opt="light">Light</button>
+          <button type="button" data-theme-opt="dark">Dark</button>
+        </div>
+      </div>
       <label class="row">
         <span class="row-label">Currency</span>
         <input class="row-input" id="setCurrency" maxlength="6" autocomplete="off">
@@ -662,7 +710,7 @@
 'use strict';
 
 /* ================= Constants ================= */
-const APP_VERSION = 5;   // keep in step with CACHE in sw.js
+const APP_VERSION = 6;   // keep in step with CACHE in sw.js
 const STORE_KEY = 'carBudget.v1';
 const CATS = {
   petrol:  { label: 'Petrol',   budget: 'petrol' },
@@ -1165,6 +1213,34 @@ $('settingsForm').addEventListener('submit', (ev) => {
   render();
   toast('Settings saved');
 });
+
+/* ================= Appearance ================= */
+const THEME_KEY = 'carBudget.theme';
+const darkQuery = window.matchMedia('(prefers-color-scheme: dark)');
+function currentTheme() {
+  try { return localStorage.getItem(THEME_KEY) || 'auto'; } catch (_) { return 'auto'; }
+}
+function applyTheme(t) {
+  const root = document.documentElement;
+  if (t === 'light' || t === 'dark') root.dataset.theme = t;
+  else delete root.dataset.theme;
+  // Match the phone's status bar to the app.
+  const dark = t === 'dark' || (t !== 'light' && darkQuery.matches);
+  document.querySelectorAll('meta[name="theme-color"]').forEach((m) => {
+    m.removeAttribute('media');
+    m.content = dark ? '#000000' : '#f2f2f7';
+  });
+  document.querySelectorAll('[data-theme-opt]').forEach((b) =>
+    b.setAttribute('aria-pressed', String(b.dataset.themeOpt === t)));
+}
+document.querySelectorAll('[data-theme-opt]').forEach((b) => b.addEventListener('click', () => {
+  const t = b.dataset.themeOpt;
+  try { if (t === 'auto') localStorage.removeItem(THEME_KEY); else localStorage.setItem(THEME_KEY, t); } catch (_) {}
+  applyTheme(t);
+  if (!$('trends').hidden) renderTrends();
+}));
+darkQuery.addEventListener('change', () => applyTheme(currentTheme()));
+applyTheme(currentTheme());
 
 /* ================= Data: export / backup / restore / clear ================= */
 function download(filename, text, mime) {
