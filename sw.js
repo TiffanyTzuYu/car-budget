@@ -1,6 +1,6 @@
 // Service worker: keeps a copy of the app on the phone so it opens without internet.
 // Bump CACHE whenever any app file changes, so phones pick up the new version.
-const CACHE = 'car-budget-v3';
+const CACHE = 'car-budget-v5';
 const FILES = [
   './',
   'manifest.webmanifest',

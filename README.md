@@ -6,7 +6,12 @@ Chrome on Android and can be installed to the home screen.
 - **Two monthly budgets:** Petrol, and Parking & Others (car park, car wash, other).
 - **Quick entry:** tap **+**, pick a category, type the amount, tap **Save**.
 - **Monthly view:** budget, spent and balance left for each budget, with a colour bar
-  (green under 80%, amber from 80% to 100%, red when over).
+  (green while 50% or more is left, yellow below 50%, red below 30% or when over).
+- **Own spending:** anything over budget is marked as own spending (not claimable), per entry
+  and per month. The CSV export has Claimable and Own spending columns.
+- **Parking saved:** unspent Parking & Others budget is money you keep. It's tracked per month
+  from your first entry up to the current month.
+- **Trends:** monthly chart, category split and a table against budget for 6 or 12 months, or a custom range.
 - **Your data stays on your phone.** There is no account and no server. Use
   ⚙️ → **Save backup** regularly.
 
